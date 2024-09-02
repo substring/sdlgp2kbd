@@ -5,7 +5,7 @@ Convert GamePad inputs to keyboard inputs. Useful for text only UIs (ncurses etc
 Requires /etc/gamecontrollerdb.txt
 
 # Build
-gcc sdlgp2k.c -o sdlgp2k -DENABLE_CONSOLE $(pkg-config --cflags sdl2) -lSDL2
+gcc sdlgp2kbd.c -o sdlgp2kbd $(pkg-config --cflags sdl2) -lSDL2
 
 # TODO
 - Add a makefile
