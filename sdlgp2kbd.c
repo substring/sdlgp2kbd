@@ -9,7 +9,6 @@
 #include <SDL.h>
 #include <linux/uinput.h>
 
-SDL_GameController* sdlgc = NULL;
 char* user_gcdb_file = NULL;
 int uinput_fd = 0; // should be moved
 typedef enum {NOPE = -1, RELEASE = 0, PRESS} press_or_release_type;
@@ -76,22 +75,43 @@ void send_input(int fd, int type, int code, int val)
 	write(fd, &ie, sizeof(ie));
 }
 
-SDL_GameController *findController() {
+void add_controller(int joystick_index) {
+	SDL_GameController* controller;
+
+	log_debug("Found a new gamecontroller: %s\n", SDL_JoystickNameForIndex(joystick_index));
+	controller = SDL_GameControllerOpen(joystick_index);
+	if (!controller)
+		log_error("Failed to open joystick %i with error: %s\n", SDL_GetError());
+	log_debug("Is it a gamecontroller ? %s\n", SDL_IsGameController(joystick_index) ? "yes" : "no");
+	if (SDL_IsGameController(joystick_index)) {
+		log_debug("Mapping: %s\n", SDL_GameControllerMapping(controller));
+	}
+	else
+	{
+		log_info("This device is not a gamecontroller, skipped\n");
+		SDL_GameControllerClose(controller);
+	}
+}
+
+void init_controllers() {
+	
+    SDL_GameController* controller;
     for (int i = 0; i < SDL_NumJoysticks(); i++) {
+		controller = SDL_GameControllerOpen(i);
+		if (!controller)
+			log_error("Failed to oepn joystick %i with error: %s\n", SDL_GetError());
+		log_debug("Found a gamecontroller\n");
+			log_debug("Is it a gamecontroller ? %s\n", SDL_IsGameController(i) ? "yes" : "no");
         if (SDL_IsGameController(i)) {
-			log_debug("Found a gamecontroller\n");
-            return SDL_GameControllerOpen(i);
+			log_debug("Mapping: %s\n", SDL_GameControllerMapping(controller));
         }
+        else
+        {
+			log_info("This device is not a gamecontroller, skipped\n");
+			SDL_GameControllerClose(controller);
+		}
     }
-
-    return NULL;
 }
-
-SDL_JoystickID getControllerInstanceID(SDL_GameController *controller)
-{
-    return SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller));
-}
-
 
 void deinit(int s)
 {
@@ -140,20 +160,16 @@ int init(int argc, char **argv)
 
 	/* Go for the SDL2 part */
 	//~ if(SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) < 0)
-	log_debug("Initializing SDL2 GameController system...");
+	log_debug("Initializing SDL2 GameController system...\n");
 	if(SDL_Init(SDL_INIT_GAMECONTROLLER) < 0)
 	{
 	    log_error("Couldn't initilize SDL!");
 		exit(1);
 	};
 	log_info(" Done!\n");
-	sdlgc = findController();
-	if(sdlgc == NULL)
-	{
-		log_error("Failed to find a SDL GameController!");
-		deinit(0);
-		exit(1);
-	}
+	/* Pads will have a plugged event anyway, so let's not add them here */
+	//init_controllers();
+
 #if SDL_VERSION_ATLEAST(2,0,2)
 	SDL_GameControllerAddMappingsFromFile("/etc/gamecontrollerdb.txt");
 	if (user_gcdb_file)
@@ -164,21 +180,62 @@ int init(int argc, char **argv)
 	if (user_gcdb_file)
 		SDL_AddGamepadMappingsFromFile(user_gcdb_file);
 #else
-	#error "Please use SDL2 (>= 2.0.2) or SDL3"
+	#error "Please compile with SDL2 (>= 2.0.2) or SDL3"
 #endif
 	log_info("There are %d joysticks connected.\n", SDL_NumJoysticks());
-	log_info("Controller used is: %s\n", SDL_GameControllerName(sdlgc));
-	if (!SDL_IsGameController(0))
+	if (SDL_NumJoysticks() < 1 || !SDL_IsGameController(0))
 	{
 		deinit(0);
 	}
+}
+
+void list_gamecontrollers()
+{
+	if(SDL_Init(SDL_INIT_GAMECONTROLLER) < 0)
+	{
+	    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());
+		exit(1);
+	}
+	
+	const char *name;
+    int i;
+    SDL_Joystick *joystick;
+	
+	// That is straight from SDL2's controllermap.c
+    SDL_Log("Found %d joysticks attached\n", SDL_NumJoysticks());
+    for (i = 0; i < SDL_NumJoysticks(); ++i) {
+        name = SDL_JoystickNameForIndex(i);
+        SDL_Log("Joystick %2d: %s\n", i, name ? name : "Unknown Joystick");
+        joystick = SDL_JoystickOpen(i);
+        if (!joystick) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_JoystickOpen(%d) failed: %s\n", i,
+                         SDL_GetError());
+        } else {
+            char guid[64];
+            SDL_JoystickGetGUIDString(SDL_JoystickGetGUID(joystick),
+                                      guid, sizeof(guid));
+            SDL_Log("       axes: %d\n", SDL_JoystickNumAxes(joystick));
+            SDL_Log("      balls: %d\n", SDL_JoystickNumBalls(joystick));
+            SDL_Log("       hats: %d\n", SDL_JoystickNumHats(joystick));
+            SDL_Log("    buttons: %d\n", SDL_JoystickNumButtons(joystick));
+            SDL_Log("instance id: %" SDL_PRIu32 "\n", SDL_JoystickInstanceID(joystick));
+            SDL_Log("       guid: %s\n", guid);
+            SDL_Log("    VID/PID: 0x%.4x/0x%.4x\n", SDL_JoystickGetVendor(joystick), SDL_JoystickGetProduct(joystick));
+            
+			//~ SDL_Log("Joystick #%d: %s\n", i, name ? name : "Unknown Joystick");
+			//~ SDL_Log("\thas %02d axes, %02d balls, %02d %02d hats and %02d buttons\n", SDL_JoystickNumAxes(joystick), SDL_JoystickNumBalls(joystick),
+            SDL_JoystickClose(joystick);
+        }
+    }
+    SDL_Quit();
+    return;
 }
 
 void print_usage()
 {
 	printf("sdlgp2kbd creates a virtual keyboard and maps gamemapds inputs to that keyboard.\n"
 	"This is useful for text based UIs (dialog, ncurses, whiptail, etc...) that require a keyboard.\n"
-	"You need your gamepad(s) mapped as as a gamecontroller through a gamecontrollerdb file\n"
+	"You need your gamepad(s) mapped as as a gamecontroller through a gamecontrollerdb file.\n"
 	"Mappings are (using a XBOX naming):\n"
 	"\tHAT/Left stick: arrow keys\n"
 	"\tLeft/Right Shoulder: Page Up/Down\n"
@@ -190,6 +247,7 @@ void print_usage()
 	"Options:\n"
 	"\t-g <file>\tspecify an additionnal gamecontrollerdb file if the system one isn't enough\n"
 	"\t-h\t\tprint this help\n"
+	"\t-l\t\tlist joysticks and exit\n"
 	"\t-q\t\tquiet mode, no output. Adding -v won't change\n"
 	"\t-v\t\tincrease verbosity, can be repeated up to 3 times (-vvv)\n"
 	);
@@ -202,39 +260,42 @@ int main(int argc, char **argv)
 	log_info("Starting %s...\n", argv[0]);
 
 	// Parse options
-	while ((c = getopt (argc, argv, "hvgq:")) != -1)
-	switch (c)
-	{
-		case 'h':
-			print_usage();
-			exit(0);
-			break;
-		case 'v':
-			if (app_log_level < LOGLEVEL_DEBUG && app_log_level != LOGLEVEL_NONE)
-				app_log_level++;
-			break;
-		case 'g':
-			user_gcdb_file = optarg;
-			if (access(user_gcdb_file, R_OK) != 0)
-			{
-				log_error("File %s doesn't exist or can't be read. Aborting!\n", user_gcdb_file);
-				exit(1);
-			}
-			break;
-		case 'q':
-			app_log_level = LOGLEVEL_NONE;
-		case '?':
-			if (optopt == 'c')
-				log_error("Option -%c requires an argument.\n", optopt);
-			else if (isprint (optopt))
-				log_error("Unknown option `-%c'.\n", optopt);
-			else
-				log_error("Unknown option character `\\x%x'.\n", optopt);
-			return 1;
-		default:
-			log_warn("Unknown option %c\n", c);
-			break;
-	}
+	while ((c = getopt (argc, argv, "hlvgq:")) != -1)
+		switch (c)
+		{
+			case 'h':
+				print_usage();
+				exit(0);
+				break;
+			case 'l':
+				list_gamecontrollers();
+				return 0;
+			case 'v':
+				if (app_log_level < LOGLEVEL_DEBUG && app_log_level != LOGLEVEL_NONE)
+					app_log_level++;
+				break;
+			case 'g':
+				user_gcdb_file = optarg;
+				if (access(user_gcdb_file, R_OK) != 0)
+				{
+					log_error("File %s doesn't exist or can't be read. Aborting!\n", user_gcdb_file);
+					exit(1);
+				}
+				break;
+			case 'q':
+				app_log_level = LOGLEVEL_NONE;
+			case '?':
+				if (optopt == 'c')
+					log_error("Option -%c requires an argument.\n", optopt);
+				else if (isprint (optopt))
+					log_error("Unknown option `-%c'.\n", optopt);
+				else
+					log_error("Unknown option character `\\x%x'.\n", optopt);
+				return 1;
+			default:
+				log_warn("Unknown option %c\n", c);
+				break;
+		}
 
 
 
@@ -260,20 +321,13 @@ int main(int argc, char **argv)
 					break;
 
 				case SDL_CONTROLLERDEVICEADDED:
-					if (!sdlgc)
-					{
-						log_debug("Pad plugged\n");
-						sdlgc = SDL_GameControllerOpen(event.cdevice.which);
-					}
+					log_debug("Pad plugged\n");
+					//~ SDL_JoystickID instanceId = SDL_JoystickGetDeviceInstanceID(event.cdevice);
+					add_controller(event.cdevice.which);
 					break;
 
 				case SDL_CONTROLLERDEVICEREMOVED:
 					log_debug("Pad removed\n");
-					if (sdlgc && event.cdevice.which == SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(sdlgc))) 
-					{
-						SDL_GameControllerClose(sdlgc);
-						sdlgc = findController();
-					}
 					break;
 
 				case SDL_CONTROLLERBUTTONUP:
@@ -283,13 +337,11 @@ int main(int argc, char **argv)
 					if (event.type == SDL_CONTROLLERBUTTONDOWN)
 						action = PRESS;
 					
-					if (sdlgc && event.cdevice.which != getControllerInstanceID(sdlgc))
-						break;
-					log_debug("Button pressed!\n");
+					log_debug("Button pressed: %s\n", SDL_GameControllerGetStringForButton(event.cbutton.button));
 					switch (event.cbutton.button) 
 					{
 						case SDL_CONTROLLER_BUTTON_A:
-							keycode =  KEY_SPACE;
+							keycode = KEY_SPACE;
 							break;
 						case SDL_CONTROLLER_BUTTON_B:
 							keycode = KEY_ESC;
@@ -323,9 +375,7 @@ int main(int argc, char **argv)
 					break;
 
 				case SDL_CONTROLLERAXISMOTION:
-					if (sdlgc && event.caxis.which != getControllerInstanceID(sdlgc))
-						break;
-					log_debug("Axis moved (%d) is: ", event.caxis.axis);
+					log_debug("Axis moved (%d) is: %s\n", event.caxis.axis, SDL_GameControllerGetStringForAxis(event.caxis.axis));
 					switch (event.caxis.axis)
 					{
 						case SDL_CONTROLLER_AXIS_LEFTY:
