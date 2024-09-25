@@ -189,7 +189,7 @@ int init(int argc, char **argv)
 	}
 }
 
-void list_gamecontrollers()
+int list_gamecontrollers()
 {
 	if(SDL_Init(SDL_INIT_GAMECONTROLLER) < 0)
 	{
@@ -198,12 +198,13 @@ void list_gamecontrollers()
 	}
 	
 	const char *name;
-    int i;
+    int i, num_joysticks;
     SDL_Joystick *joystick;
 	
 	// That is straight from SDL2's controllermap.c
-    SDL_Log("Found %d joysticks attached\n", SDL_NumJoysticks());
-    for (i = 0; i < SDL_NumJoysticks(); ++i) {
+	num_joysticks = SDL_NumJoysticks();
+    SDL_Log("Found %d joysticks attached\n", num_joysticks);
+    for (i = 0; i < num_joysticks; ++i) {
         name = SDL_JoystickNameForIndex(i);
         SDL_Log("Joystick %2d: %s\n", i, name ? name : "Unknown Joystick");
         joystick = SDL_JoystickOpen(i);
@@ -228,7 +229,7 @@ void list_gamecontrollers()
         }
     }
     SDL_Quit();
-    return;
+    return (num_joysticks > 0);
 }
 
 void print_usage()
@@ -236,7 +237,7 @@ void print_usage()
 	printf("sdlgp2kbd creates a virtual keyboard and maps gamemapds inputs to that keyboard.\n"
 	"This is useful for text based UIs (dialog, ncurses, whiptail, etc...) that require a keyboard.\n"
 	"You need your gamepad(s) mapped as as a gamecontroller through a gamecontrollerdb file.\n"
-	"Mappings are (using a XBOX naming):\n"
+	"Mappings are (using XBOX naming):\n"
 	"\tHAT/Left stick: arrow keys\n"
 	"\tLeft/Right Shoulder: Page Up/Down\n"
 	"\tSTART: Enter\n"
@@ -247,7 +248,7 @@ void print_usage()
 	"Options:\n"
 	"\t-g <file>\tspecify an additionnal gamecontrollerdb file if the system one isn't enough\n"
 	"\t-h\t\tprint this help\n"
-	"\t-l\t\tlist joysticks and exit\n"
+	"\t-l\t\tlist joysticks and exit. Return 0 if gamecontrollers were found\n"
 	"\t-q\t\tquiet mode, no output. Adding -v won't change\n"
 	"\t-v\t\tincrease verbosity, can be repeated up to 3 times (-vvv)\n"
 	);
@@ -268,8 +269,7 @@ int main(int argc, char **argv)
 				exit(0);
 				break;
 			case 'l':
-				list_gamecontrollers();
-				return 0;
+				return (list_gamecontrollers() == 0);
 			case 'v':
 				if (app_log_level < LOGLEVEL_DEBUG && app_log_level != LOGLEVEL_NONE)
 					app_log_level++;
