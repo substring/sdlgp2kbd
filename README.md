@@ -22,8 +22,8 @@ It can also be done as a user if you set the proper owner/group to /dev/uinput a
 - Add a makefile
 - SDL3 support
 - command line argument for XBOX/SNES layout
-- command line argument for gamecontrollerdb.txt path
-- gamecontroller index / all existing gamecontrollers
+- ~~command line argument for gamecontrollerdb.txt path~~
+- gamecontroller index / ~~all existing gamecontrollers~~
 - map gamecontroller buttons to keys
 - exclusive access to gamepads to prevent double inputs
 
