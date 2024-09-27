@@ -18,5 +18,8 @@ sdlgp2kbd:
 
 all: sdlgp2kbd
 
+install:
+	install -Dm 755 sdlgp2kbd -t /usr/bin
+
 clean:
 	rm sdlgp2kbd
