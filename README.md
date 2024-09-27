@@ -1,6 +1,8 @@
 # sdlgp2kbd
 Convert GamePad inputs to keyboard inputs. Useful for text only UIs (ncurses etc...). Simulates keyboard inputs such as arrows, ENTER, TAB, ESC, Page Up/Down. This is done using SDL to capture GamePad events through the universal GameController API, and create a keyboard device using uinput
 
+And it's fast! The gamepad input is converted in less than 20µs to a keyboard event. No lag!
+
 # Requirements
 - SDL2
 - Kernel headers
@@ -16,7 +18,7 @@ You can run it by several means, all of them require your user to have write acc
 
 Root, of course, can use it flawlessly. Not necessarily the recommended way of using it.
 
-It can also be done as a user if you set the proper owner/group to /dev/uinput and of course that user belonging to that specific group. If you want this to survive after a reboot, you should add a udev rule + load the uinput module at boot to trigger the rule.
+It can also be done as a user if you set the proper owner/group to /dev/uinput and allow the write permission. If you want this to survive after a reboot, you should add a udev rule + load the uinput module at boot to trigger the rule.
 
 # TODO
 - Add a makefile
