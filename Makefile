@@ -4,6 +4,9 @@ PKG_CONFIG ?= pkg-config
 CFLAGS =
 LDFLAGS =
 
+DESTDIR ?=
+PREFIX ?= /usr/bin
+
 # Check SDL2 is here
 HAS_VALID_SDL2 := $(shell $(PKG_CONFIG) --silence-errors --libs "sdl2 >= 2.0.2"; echo $$?)
 ifeq ($(HAS_VALID_SDL2),1)
@@ -19,7 +22,7 @@ sdlgp2kbd:
 all: sdlgp2kbd
 
 install:
-	install -Dm 755 sdlgp2kbd -t /usr/bin
+	install -Dm 755 sdlgp2kbd -t $(DESTDIR)$(PREFIX)
 
 clean:
 	rm sdlgp2kbd
