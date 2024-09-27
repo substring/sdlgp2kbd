@@ -9,6 +9,11 @@
 #include <SDL.h>
 #include <linux/uinput.h>
 
+#define APP_MAJOR "0"
+#define APP_MINOR "1"
+#define APP_PATCH "0"
+#define APP_VERSION APP_MAJOR"."APP_MINOR"."APP_PATCH
+
 char* user_gcdb_file = NULL;
 int uinput_fd = 0; // should be moved
 typedef enum {NOPE = -1, RELEASE = 0, PRESS} press_or_release_type;
@@ -234,7 +239,8 @@ int list_gamecontrollers()
 
 void print_usage()
 {
-	printf("sdlgp2kbd creates a virtual keyboard and maps gamemapds inputs to that keyboard.\n"
+	printf("sdlgp2kbd %s\n"
+	"sdlgp2kbd creates a virtual keyboard and maps gamemapds inputs to that keyboard.\n"
 	"This is useful for text based UIs (dialog, ncurses, whiptail, etc...) that require a keyboard.\n"
 	"You need your gamepad(s) mapped as as a gamecontroller through a gamecontrollerdb file.\n"
 	"Mappings are (using XBOX naming):\n"
@@ -250,8 +256,8 @@ void print_usage()
 	"\t-h\t\tprint this help\n"
 	"\t-l\t\tlist joysticks and exit. Return 0 if gamecontrollers were found\n"
 	"\t-q\t\tquiet mode, no output. Adding -v won't change\n"
-	"\t-v\t\tincrease verbosity, can be repeated up to 3 times (-vvv)\n"
-	);
+	"\t-v\t\tincrease verbosity, can be repeated up to 3 times (-vvv)\n",
+	APP_VERSION);
 }
 
 int main(int argc, char **argv)
