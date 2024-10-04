@@ -68,6 +68,7 @@ void log_debug(const char* format, ...)
 void send_input(int fd, int type, int code, int val)
 {
 	struct input_event ie;
+	ssize_t rcode;
 
 	ie.type = type;
 	ie.code = code;
@@ -77,7 +78,9 @@ void send_input(int fd, int type, int code, int val)
 	ie.time.tv_usec = 0;
 	log_debug("Sending fd(%d) type(%d) code(%d) value(%d)\n", fd, type, code, val);
 
-	write(fd, &ie, sizeof(ie));
+	rcode = write(fd, &ie, sizeof(ie));
+	if (rcode != 0)
+		log_warn("Couldn't write data to uinput device\n");
 }
 
 void add_controller(int joystick_index) {
