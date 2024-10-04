@@ -20,13 +20,18 @@
 #include "SDL.h"
 #include "testutils.h"
 
+#ifndef DATA_DIR
+#define DATA_DIR ""
+#endif
+
 #ifndef SDL_JOYSTICK_DISABLED
 
 /* Define this for verbose output while mapping controllers */
-#define DEBUG_CONTROLLERMAP
+//~ #define DEBUG_CONTROLLERMAP
 
 #define SCREEN_WIDTH  512
 #define SCREEN_HEIGHT 320
+#define SKIP_DELAY    1300
 
 enum marker_type
 {
@@ -174,6 +179,8 @@ static SDL_Window *window;
 static SDL_Renderer *screen;
 static SDL_bool done = SDL_FALSE;
 static SDL_bool bind_touchpad = SDL_FALSE;
+static SDL_bool timer_reached = SDL_FALSE;
+static SDL_TimerID long_press_timierId;
 
 static int
 StandardizeAxisValue(int nValue)
@@ -350,6 +357,15 @@ BMergeAxisBindings(int iIndex)
     return SDL_FALSE;
 }
 
+static Uint32 SDLCALL
+TimerCallback(Uint32 interval, void* param)
+{
+    SDL_Log("Key pressed for skip\n");
+    SDL_RemoveTimer(long_press_timierId);
+    timer_reached = SDL_TRUE;
+    SetCurrentBinding(s_iCurrentBinding + 1);
+}
+
 static void
 WatchJoystick(SDL_Joystick *joystick)
 {
@@ -361,10 +377,10 @@ WatchJoystick(SDL_Joystick *joystick)
     Uint32 alpha_ticks = 0;
     SDL_JoystickID nJoystickID;
 
-    background_front = LoadTexture(screen, "controllermap.bmp", SDL_FALSE, NULL, NULL);
-    background_back = LoadTexture(screen, "controllermap_back.bmp", SDL_FALSE, NULL, NULL);
-    button = LoadTexture(screen, "button.bmp", SDL_TRUE, NULL, NULL);
-    axis = LoadTexture(screen, "axis.bmp", SDL_TRUE, NULL, NULL);
+    background_front = LoadTexture(screen, DATA_DIR "controllermap.bmp", SDL_FALSE, NULL, NULL);
+    background_back = LoadTexture(screen, DATA_DIR "controllermap_back.bmp", SDL_FALSE, NULL, NULL);
+    button = LoadTexture(screen, DATA_DIR "button.bmp", SDL_TRUE, NULL, NULL);
+    axis = LoadTexture(screen, DATA_DIR "axis.bmp", SDL_TRUE, NULL, NULL);
     SDL_RaiseWindow(window);
 
     /* scale for platforms that don't give you the window size you asked for. */
@@ -383,7 +399,7 @@ WatchJoystick(SDL_Joystick *joystick)
     Press the buttons on your controller when indicated\n\
     (Your controller may look different than the picture)\n\
     If you want to correct a mistake, press backspace or the back button on your device\n\
-    To skip a button, press SPACE or click/touch the screen\n\
+    To skip a button, press SPACE, press a button more than 1s or click/touch the screen\n\
     To exit, press ESC\n\
     ====================================================================================\n");
 
@@ -502,10 +518,14 @@ WatchJoystick(SDL_Joystick *joystick)
                     }
                 }
                 break;
+            case SDL_JOYBUTTONDOWN:
+                long_press_timierId = SDL_AddTimer(SKIP_DELAY, TimerCallback, NULL );
+                break;
             case SDL_JOYBUTTONUP:
-                if (event.jbutton.which == nJoystickID) {
+                if (!timer_reached && event.jbutton.which == nJoystickID) {
                     SDL_GameControllerExtendedBind binding;
 
+                    SDL_RemoveTimer(long_press_timierId);
 #ifdef DEBUG_CONTROLLERMAP
                     SDL_Log("BUTTON %d\n", event.jbutton.button);
 #endif
@@ -515,6 +535,7 @@ WatchJoystick(SDL_Joystick *joystick)
                     binding.committed = SDL_TRUE;
                     ConfigureBinding(&binding);
                 }
+                timer_reached = SDL_FALSE;
                 break;
             case SDL_FINGERDOWN:
             case SDL_MOUSEBUTTONDOWN:
@@ -717,7 +738,7 @@ int main(int argc, char *argv[])
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
 
     /* Initialize SDL (Note: video is required to start event loop) */
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());
         exit(1);
     }
@@ -802,7 +823,7 @@ int main(int argc, char *argv[])
 
     SDL_DestroyWindow(window);
 
-    SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK);
+    SDL_QuitSubSystem(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER);
 
     return 0;
 }
