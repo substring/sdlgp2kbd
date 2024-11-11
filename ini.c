@@ -38,13 +38,10 @@ int get_property_value(const char* line, char* property_name, char* property_val
             token_pos = i + 1;
             continue;
         }
-        else if (token_pos != 0)
-            property_value[i - token_pos] = line[i];
-        else
-            property_name[i] = line[i];
+        dest_str[i - token_pos] = line[i];
     }
     while (line[++i] != '\0');
-    property_value[i - token_pos] = '\0';
+    dest_str[i - token_pos] = '\0';
     
     return 1;
 }
