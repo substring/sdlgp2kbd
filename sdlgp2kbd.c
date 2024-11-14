@@ -79,7 +79,7 @@ void send_input(int fd, int type, int code, int val)
 	log_debug("Sending fd(%d) type(%d) code(%d) value(%d)\n", fd, type, code, val);
 
 	rcode = write(fd, &ie, sizeof(ie));
-	if (rcode != 0)
+	if (rcode <= 0)
 		log_warn("Couldn't write data to uinput device\n");
 }
 
@@ -263,6 +263,11 @@ void print_usage()
 	APP_VERSION);
 }
 
+void load_configuration(char* conf_file)
+{
+	/* Mappings follow the SDL_GamepadMapping struct names */
+}
+
 int main(int argc, char **argv)
 {
 	int c;
@@ -365,7 +370,7 @@ int main(int argc, char **argv)
 							keycode = KEY_PAGEUP;
 							break;
 						case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
-							keycode = KEY_DOWN;
+							keycode = KEY_PAGEDOWN;
 							break;
 
 						case SDL_CONTROLLER_BUTTON_DPAD_UP:

@@ -9,9 +9,11 @@ PREFIX ?= /usr/bin
 DATA_DIR ?= /usr/share/controllermap
 
 # Check SDL2 is here
-HAS_VALID_SDL2 := $(shell $(PKG_CONFIG) --silence-errors --libs "sdl2 >= 2.0.2"; echo $$?)
+# >= 2.0.2 for the gamepad API
+# >= 2.24.0 for SDL_GUIDFromString()
+HAS_VALID_SDL2 := $(shell $(PKG_CONFIG) --silence-errors --libs "sdl2 >= 2.24.0"; echo $$?)
 ifeq ($(HAS_VALID_SDL2),1)
-	$(error You need at least SDL 2.0.2)
+	$(error You need at least SDL 2.24.0)
 endif
 
 CFLAGS  += $(shell $(PKG_CONFIG) --cflags sdl2)
